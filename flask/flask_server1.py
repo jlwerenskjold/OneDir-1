@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, url_for, render_template
 import json
 import os
 import logging
@@ -51,9 +51,20 @@ def get_json1():
     ret = json.dumps(data)
     return ret
 
+@app.route('/users/get/<user>')
+def display_user(user):
+    return render_template('test_template.html', user=user)
+
+@app.route('/numbers_example/<int:x>')
+def display_number(x):
+    return x
+
+with app.test_request_context():
+    print url_for('display_user', user='wre9fz')
+
 
 # Invoked when you access: http://127.0.0.1:5000/get-file-data/somedata.txt
-@app.route('/get-file-data/<filename>')
+@app.route('/get-file-data/<filename>', methods=['GET'])
 def get_file_data(filename):
     logging.debug("entering get_file_data")
     full_filename = os.path.join(WORKING_DIR, 'filestore', filename)

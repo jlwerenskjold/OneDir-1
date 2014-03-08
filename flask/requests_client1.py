@@ -35,6 +35,9 @@ def main():
     process_file("somedata.txt")
     process_file("badfile")
 
+    r = requests.get('http://127.0.0.1:5000/users/get/wre9fz')
+    print r.text
+
     print "\nClient ending."
 
 
