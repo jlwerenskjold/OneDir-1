@@ -4,12 +4,16 @@ import os
 import logging
 import sqlite3
 import hashlib
+from werkzeug.utils import secure_filename
 
 """
 The beginnings of a restful API for OneDir
 """
 
 app = Flask(__name__)
+
+UPLOAD_FOLDER = '/Users/Will/Desktop/uploads'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 try:
     CONNECTION = sqlite3.connect('users.db')
@@ -76,7 +80,37 @@ def authenticate():
     else:
         return "wrong password"
 
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    file = request.files['file']
+    if file:
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        return url_for('get_file',
+                                filename=filename)
 
+@app.route('/upload', methods=['GET'])
+def upload_form():
+    return '''
+    <!doctype html>
+    <title>Upload new File</title>
+    <h1>Upload new File</h1>
+    <form action="" method=post enctype=multipart/form-data>
+      <p><input type=file name=file>
+         <input type=submit value=Upload>
+    </form>
+    '''
+
+@app.route('/get_file/<filename>', methods=['GET'])
+def get_file(filename):
+    full_filename = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    if not os.path.exists(full_filename):
+        logging.warn("file does not exist on server: " + full_filename)
+        return { "result" : -1, "msg" : "file does not exist"}
+    else:
+        with open(full_filename, "rb") as in_file:
+            read = in_file.read(32)
+        return read
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
