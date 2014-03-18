@@ -75,7 +75,8 @@ def get_file_data(filename):
         with open(full_filename, "rb") as in_file:
             snippet = in_file.read(32)
         file_size = os.path.getsize(full_filename)
-        ret_value = { "result" : 0, "size" : file_size, "value" : snippet}
+        # ret_value = { "result" : 0, "size" : file_size, "value" : snippet}
+        ret_value = snippet
     return json.dumps(ret_value)
 
 if __name__ == '__main__':

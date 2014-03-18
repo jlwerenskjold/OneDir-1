@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OneDir User Listing</title>
+</head>
+<body>
+<center>
+{% if users %}
+    <table>
+        <tr>
+            <td><b>Username</b></td>
+            <td><b>Password Hash</b></td>
+        </tr>
+        {% for user in users %}
+            <tr>
+                <td>{{user}}</td>
+                <td>{{users[user]}}</td>
+            </tr>
+        {% endfor %}
+    </table>
+{% else %}
+  <h1>No users to list!</h1>
+{% endif %}
+</center>
+</body>
+</html>
