@@ -52,13 +52,17 @@ login_manager.init_app(app)
 
 engine = create_engine('sqlite:///:memory:', echo=True)
 
+@app.before_request
+def before_request():
+    g.user = current_user
+
 @login_manager.user_loader
 def load_user(userid):
     return User.query.filter_by(id=userid).first()
 
-@app.before_request
-def before_request():
-    g.user = current_user
+@login_manager.unauthorized_handler
+def unauthorized():
+    return 'Unauthorized, please go <a href="' + str(url_for('login')) + '">here</a> to login'
 
 @app.route('/register' , methods=['GET','POST'])
 def register():
@@ -85,15 +89,17 @@ def login():
     flash('Logged in successfully')
     return redirect(request.args.get('next') or url_for('index'))
 
+@app.route('/logout')
+def logout():
+    logout_user()
+    return redirect(url_for('index'))
+
 @app.route('/')
 @login_required
 def index():
     return "Authenticated"
 
-@app.route('/logout')
-def logout():
-    logout_user()
-    return redirect(url_for('index'))
+
 
 if __name__ == '__main__':
     # for database initialization, uncomment this
