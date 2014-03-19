@@ -97,9 +97,7 @@ def logout():
 @app.route('/')
 @login_required
 def index():
-    return "Authenticated"
-
-
+    return render_template("index.html")
 
 if __name__ == '__main__':
     # for database initialization, uncomment this
