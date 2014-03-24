@@ -6,6 +6,8 @@ import hashlib
 from sqlalchemy import create_engine
 from flask.ext.migrate import Migrate, MigrateCommand
 from flask.ext.script import Manager
+from werkzeug.utils import secure_filename
+import os
 
 """
 Exploring flask-login library
@@ -14,6 +16,8 @@ Exploring flask-login library
 app = Flask(__name__)
 app.secret_key = 'super-secret-key'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////Users/Will/test.db'
+UPLOAD_FOLDER = '/Users/Will/Desktop/uploads'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 manager = Manager(app)
@@ -98,6 +102,33 @@ def logout():
 @login_required
 def index():
     return render_template("index.html")
+
+@app.route('/upload', methods=['POST'])
+@login_required
+def upload_file():
+    file = request.files['file']
+    if file:
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        file_url = str(url_for('get_file', filename=filename))
+        return "<a href='" + file_url + "'>" + file_url + "</a>" + render_template("layout.html")
+
+@app.route('/upload', methods=['GET'])
+@login_required
+def upload_form():
+    return render_template('upload_form.html')
+
+@app.route('/get_file/<filename>', methods=['GET'])
+@login_required
+def get_file(filename):
+    full_filename = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    if not os.path.exists(full_filename):
+        logging.warn("file does not exist on server: " + full_filename)
+        return { "result" : -1, "msg" : "file does not exist"}
+    else:
+        with open(full_filename, "rb") as in_file:
+            read = in_file.read(32)
+        return read
 
 if __name__ == '__main__':
     # for database initialization, uncomment this
