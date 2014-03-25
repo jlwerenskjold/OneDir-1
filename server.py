@@ -74,7 +74,7 @@ class User(db.Model):
 #         self.username = username
 #         self.password = hashlib.sha256(password).hexdigest()
 #         self.email = email
-# 
+#
 #     def is_authenticated(self):
 #         return True
 #
