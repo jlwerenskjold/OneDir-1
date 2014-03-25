@@ -130,6 +130,34 @@ def get_file(filename):
             read = in_file.read(32)
         return read
 
+@app.route('/json_registration', methods=['POST'])
+def register_json():
+    if not request.json['username']:
+        return "no username present"
+    if not request.json['password']:
+        return "no password present"
+    if not request.json['email']:
+        return "no password present"
+    username = request.json['username']
+    password = request.json['password']
+    email = request.json['email']
+    hash = hashlib.sha256(password).hexdigest()
+    user = User(username, password, email)
+    db.session.add(user)
+    db.session.commit()
+    return username
+
+@app.route('/json_login', methods=['POST'])
+def json_login():
+    username = request.json['username']
+    password = request.json['password']
+    hash = hashlib.sha256(password).hexdigest()
+    registered_user = User.query.filter_by(username=username,password=hash).first()
+    if registered_user is None:
+        return "false"
+    login_user(registered_user)
+    return "true"
+
 if __name__ == '__main__':
     # for database initialization, uncomment this
     # then run python flask_login_proto init, migrate, and upgrade cmds
@@ -137,4 +165,4 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
     # logging.basicConfig(filename='example.log',level=logging.DEBUG)
     logging.info("Starting server")
-    app.run()
+    app.run(threaded=True)
