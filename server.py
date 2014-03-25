@@ -101,21 +101,24 @@ login_manager.init_app(app)
 def load_user(userid):
     return User.query.filter_by(id=userid).first()
 
+@app.errorhandler(404)
+def not_found(error):
+    return '{ "result" : -1, "msg" : "resource not found"}'
+
 @login_manager.unauthorized_handler
 def unauthorized():
-    return '{ "result" : -1, "msg" : "unathorized"}'
+    return '{ "result" : -2, "msg" : "unathorized"}'
 
 @app.route('/file/<filename>', methods=['GET'])
 @login_required
 def get_file(filename):
     full_filename = os.path.join(current_user.get_folder(), filename)
     if not os.path.exists(full_filename):
-        logging.warn("file does not exist on server: " + full_filename)
         return '{ "result" : -1, "msg" : "file does not exist"}'
     else:
         with open(full_filename, "rb") as in_file:
             read = in_file.read()
-        return read
+        return '{ "result" : "' + read + '"}'
 
 @app.route('/file', methods=['POST'])
 @login_required
@@ -131,12 +134,8 @@ def upload_file():
 
 @app.route('/register', methods=['POST'])
 def register():
-    if not request.json['username']:
-        return "no username present"
-    if not request.json['password']:
-        return "no password present"
-    if not request.json['email']:
-        return "no password present"
+    if not request.json['username'] or not request.json['password'] or not request.json['email']:
+        return '{ "result" : -1, "msg" : "missing parameters"}'
     username = request.json['username']
     password = request.json['password']
     email = request.json['email']
@@ -146,25 +145,23 @@ def register():
         db.session.add(user)
         db.session.commit()
     except:
-        return '{ "result" : -1, "msg" : "validation failed"}'
+        return '{ "result" : -1, "msg" : "registration failed"}'
     return '{ "result" :"' + str(username) + '", "msg" : "user created"}'
 
-@app.route('/login', methods=['POST'])
+@app.route('/session', methods=['POST'])
 def login():
-    if not request.json['username']:
-        return "no username present"
-    if not request.json['password']:
-        return "no password present"
+    if not request.json['username'] or not request.json['password']:
+        return '{ "result" : -1, "msg" : "missing parameters"}'
     username = request.json['username']
     password = request.json['password']
     hash = hashlib.sha256(password).hexdigest()
     registered_user = User.query.filter_by(username=username,password=hash).first()
     if registered_user is None:
-        return '{ "result" : -1, "msg" : "login faild"}'
+        return '{ "result" : -1, "msg" : "login failed"}'
     login_user(registered_user)
     return '{ "result" : "' + str(username) + '", "msg" : "authenticated"}'
 
-@app.route('/logout', methods=['DELETE'])
+@app.route('/session', methods=['DELETE'])
 def logout():
     if current_user:
             r = '{ "result" : "' + str(current_user.username) + '", "msg" : "logged out"}'
@@ -172,10 +169,6 @@ def logout():
     else:
         r = '{ "result" : -1, "msg" : "not logged in"}'
     return r
-
-@app.errorhandler(404)
-def not_found(error):
-    return '{ "result" : -1, "msg" : "resource not found"}'
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
