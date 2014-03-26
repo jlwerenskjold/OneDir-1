@@ -1,5 +1,8 @@
 from flask import Flask, url_for, render_template, request, redirect, flash, g
 from flask.ext.sqlalchemy import SQLAlchemy
+from sqlalchemy import Column, Integer, ForeignKey
+from sqlalchemy.orm import relationship, backref
+from sqlalchemy.ext.declarative import declarative_base
 from flask.ext.login import LoginManager, login_user , logout_user , current_user , login_required
 import logging
 import hashlib
@@ -8,7 +11,7 @@ from flask.ext.migrate import Migrate, MigrateCommand
 from flask.ext.script import Manager
 from werkzeug.utils import secure_filename
 import os
-
+import datetime
 #
 #
 # FLASK ONEDIR API
@@ -26,6 +29,13 @@ UPLOAD_FOLDER = '/Users/Will/Desktop/uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 db = SQLAlchemy(app)
 
+# To do DB migration: uncomment this, then run
+# python server.py db (migrate, then upgrade)
+#
+# migrate = Migrate(app, db)
+# manager = Manager(app)
+# manager.add_command('db', MigrateCommand)
+
 #
 # USER MODEL
 # SQLAlchemy model that interacts with SQLite database
@@ -36,6 +46,7 @@ class User(db.Model):
     username = db.Column('username', db.String(20), unique=True , index=True)
     password = db.Column('password' , db.String(10))
     email = db.Column('email',db.String(50),unique=True , index=True)
+    files = relationship("File", backref="user")
 
     def __init__(self , username ,password , email):
         self.username = username
@@ -58,38 +69,29 @@ class User(db.Model):
         return '<User %r>' % (self.username)
 
     def get_folder(self):
-        folder = app.config['UPLOAD_FOLDER'] + "/" + str(self.username)
-        if not os.path.exists(folder):
-            os.makedirs(folder)
-        return folder
+        return app.config['UPLOAD_FOLDER'] + "/" + str(self.username)
 
-# class File(db.Model):
-#     __tablename__ = "file"
-#     id = db.Column('user_id',db.Integer , primary_key=True)
-#     username = db.Column('username', db.String(20), unique=True , index=True)
-#     password = db.Column('password' , db.String(10))
-#     email = db.Column('email',db.String(50),unique=True , index=True)
-#
-#     def __init__(self , username ,password , email):
-#         self.username = username
-#         self.password = hashlib.sha256(password).hexdigest()
-#         self.email = email
-#
-#     def is_authenticated(self):
-#         return True
-#
-#     def is_active(self):
-#         return True
-#
-#     def is_anonymous(self):
-#         return False
-#
-#     def get_id(self):
-#         return unicode(self.id)
-#
-#     def __repr__(self):
-#         return '<User %r>' % (self.username)
+class File(db.Model):
+    __tablename__ = "files"
+    username = db.Column('username',db.String(20), ForeignKey("users.username"))
+    name = db.Column('name', db.String(30))
+    path = db.Column('path', db.String(128))
+    hash = db.Column('hash', db.String(40), primary_key=True)
+    modified = db.Column('modified', db.DateTime)
 
+    def __init__(self, username , name, path, hash, modified):
+        self.username = username
+        self.name = name
+        self.path = path
+        self.hash = hash
+        self.modified = modified
+
+    def relative_path(self):
+        return self.path + "/" + self.name
+
+    def absolute_path(self):
+        user = User.query.filter_by(username=self.username).first()
+        return str(user.get_folder()) + "/" + self.relative_path()
 
 #
 # LOGIN MANAGER - in charge of sessions
@@ -109,7 +111,7 @@ def not_found(error):
 def unauthorized():
     return '{ "result" : -2, "msg" : "unathorized"}'
 
-@app.route('/file/<filename>', methods=['GET'])
+@app.route('/file/<path:filename>', methods=['GET'])
 @login_required
 def get_file(filename):
     full_filename = os.path.join(current_user.get_folder(), filename)
@@ -120,30 +122,40 @@ def get_file(filename):
             read = in_file.read()
         return '{ "result" : "' + read + '"}'
 
-@app.route('/file', methods=['POST'])
+@app.route('/file/<path>', methods=['POST'])
 @login_required
-def upload_file():
+def upload_file(path):
     file = request.files['file']
-    if file:
-        filename = secure_filename(file.filename)
-        file.save(os.path.join(current_user.get_folder(), filename))
-        file_url = str(url_for('get_file', filename=filename))
-        return '{ "result" : 1, "msg" : "file uploaded"}'
-    else:
+    if not is_safe(path):
+        return '{ "result" : -1, "msg" : "unsafe path"}'
+    if not file:
         return '{ "result" : -1, "msg" : "file not uploaded"}'
+    filename = secure_filename(file.filename)
+    full_path = os.path.join(current_user.get_folder(), path)
+    if not os.path.exists(full_path):
+        os.makedirs(full_path)
+    full_path = os.path.join(full_path, filename)
+    file.save(full_path)
+    file_hash = hash_file(full_path)
+    entry = File(current_user.username, file.filename, path, file_hash, datetime.datetime.utcnow())
+    dupe = File.query.filter_by(hash=file_hash, user=current_user).first()
+    if dupe:
+        dupe = entry
+    else:
+        db.session.add(entry)
+    db.session.commit()
+    return '{ "result" : 1, "msg" : "file uploaded"}'
 
 @app.route('/register', methods=['POST'])
 def register():
-    if not request.json['username'] or not request.json['password'] or not request.json['email']:
+    username, password, email = str(request.json['username']), str(request.json['password']), str(request.json['email'])
+    if not username or not password or not email:
         return '{ "result" : -1, "msg" : "missing parameters"}'
-    username = request.json['username']
-    password = request.json['password']
-    email = request.json['email']
-    hash = hashlib.sha256(password).hexdigest()
     try:
         user = User(username, password, email)
         db.session.add(user)
         db.session.commit()
+        os.makedirs(user.get_folder())
     except:
         return '{ "result" : -1, "msg" : "registration failed"}'
     return '{ "result" :"' + str(username) + '", "msg" : "user created"}'
@@ -170,6 +182,17 @@ def logout():
         r = '{ "result" : -1, "msg" : "not logged in"}'
     return r
 
+def is_safe(filename):
+    here = os.path.abspath(".")
+    there = os.path.abspath(filename)
+    return there.startswith(here)
+
+def hash_file(path):
+    with open(path, 'rb') as f:
+        data = f.read()
+    return hashlib.sha1(data + str(os.stat(path).st_size)).hexdigest()
+
 if __name__ == '__main__':
+    # manager.run()
     logging.basicConfig(level=logging.DEBUG)
     app.run(threaded=True)

@@ -18,12 +18,13 @@ class TestServer(TestCase):
         self.cookies = r.cookies
 
     def test_post_file(self):
-        url = HOST + "file"
+        url = HOST + "file/test"
+        headers = {'Content-Type': 'application/json'}
         r = requests.post(url, files={'file': open('test_upload.txt', 'rb')}, cookies=self.cookies)
         self.assertEqual(r.json()['result'], 1)
 
     def test_get_file(self):
-        url = HOST + "file/test_upload.txt"
+        url = HOST + "file/test/test_upload.txt"
         r = requests.get(url, cookies=self.cookies)
         self.assertEqual(r.json()['result'], "UploadTest")
         url = HOST + "file/fake_file.txt"
