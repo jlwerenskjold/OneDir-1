@@ -169,6 +169,25 @@ def upload_file(path):
     db.session.commit()
     return '{ "result" : 1, "msg" : "file uploaded"}'
 
+@app.route('/file', methods=['POST'])
+@login_required
+def upload_no_path():
+    file = request.files['file']
+    if not file:
+        return '{ "result" : -1, "msg" : "file not uploaded"}'
+    filename = secure_filename(file.filename)
+    full_path = os.path.join(current_user.get_folder(), filename)
+    file.save(full_path)
+    file_hash = hash_file(full_path)
+    entry = File(current_user.username, file.filename, '/', file_hash, datetime.datetime.utcnow())
+    dupe = File.query.filter_by(hash=file_hash, user=current_user).first()
+    if dupe:
+        dupe = entry
+    else:
+        db.session.add(entry)
+    db.session.commit()
+    return '{ "result" : 1, "msg" : "file uploaded"}'
+
 @app.route('/register', methods=['POST'])
 def register():
     username, password, email = str(request.json['username']), str(request.json['password']), str(request.json['email'])
