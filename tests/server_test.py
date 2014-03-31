@@ -66,3 +66,10 @@ class TestServer(TestCase):
         headers = {'Content-Type': 'application/json'}
         r = requests.post(url, data=json.dumps(data), headers=headers)
         self.cookies = r.cookies
+
+    def test_list(self):
+        url = HOST + "list"
+        headers = {'Content-Type': 'application/json'}
+        r = requests.get(url, headers=headers, cookies=self.cookies)
+        print r.text
+        self.fail()

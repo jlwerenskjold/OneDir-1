@@ -1,17 +1,18 @@
-from flask import Flask, url_for, render_template, request, redirect, flash, g
+from flask import Flask, url_for, render_template, request, redirect, flash, g, jsonify
 from flask.ext.sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, ForeignKey
 from sqlalchemy.orm import relationship, backref
-from sqlalchemy.ext.declarative import declarative_base
 from flask.ext.login import LoginManager, login_user , logout_user , current_user , login_required
 import logging
 import hashlib
-from sqlalchemy import create_engine
-from flask.ext.migrate import Migrate, MigrateCommand
-from flask.ext.script import Manager
 from werkzeug.utils import secure_filename
 import os
 import datetime
+# from sqlalchemy import create_engine
+# from flask.ext.migrate import Migrate, MigrateCommand
+# from flask.ext.script import Manager
+
+
 #
 #
 # FLASK ONEDIR API
@@ -111,6 +112,28 @@ def not_found(error):
 def unauthorized():
     return '{ "result" : -2, "msg" : "unathorized"}'
 
+@app.route('/list', methods=['GET'])
+@login_required
+def list():
+    files = File.query.filter_by(username=current_user.username).all()
+    if not files:
+        return ""
+    json_string = '{"files":['
+    first = True
+    for f in files:
+        if not first:
+            json_string += ","
+        json_string += '{"username":"' + str(f.username) + '", "name":' + str(f.name) + '", "path":' +\
+                       str(f.path) + '", "hash":' + str(f.hash) + '", "modified":' + str(f.modified) + '"}'
+        first = False
+    json_string += "]}"
+    return json_string
+
+@app.route('/delta', methods=['GET'])
+@login_required
+def delta():
+    return "unimplemented"
+
 @app.route('/file/<path:filename>', methods=['GET'])
 @login_required
 def get_file(filename):
@@ -122,7 +145,7 @@ def get_file(filename):
             read = in_file.read()
         return '{ "result" : "' + read + '"}'
 
-@app.route('/file/<path>', methods=['POST'])
+@app.route('/file/<path:path>', methods=['POST'])
 @login_required
 def upload_file(path):
     file = request.files['file']
