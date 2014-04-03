@@ -31,7 +31,7 @@ class TestServer(TestCase):
     def test_get_file(self):
         url = HOST + "file/test/test_upload.txt"
         r = requests.get(url, cookies=self.cookies)
-        self.assertEqual(r.json()['result'], "UploadTest")
+        self.assertEqual(r.text, "UploadTest")
         url = HOST + "file/fake_file.txt"
         r = requests.get(url, cookies=self.cookies)
         self.assertEqual(r.json()['result'], -1)
@@ -76,5 +76,5 @@ class TestServer(TestCase):
         url = HOST + "list"
         headers = {'Content-Type': 'application/json'}
         r = requests.get(url, headers=headers, cookies=self.cookies)
-        print r.text
-        self.fail()
+        files = json.loads(r.text)
+        self.assertEqual(files['files'][0]['name'], 'test_upload.txt')
