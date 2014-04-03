@@ -143,7 +143,7 @@ def get_file(filename):
     else:
         with open(full_filename, "rb") as in_file:
             read = in_file.read()
-        return '{ "result" : "' + read + '"}'
+        return read
 
 @app.route('/file/<path:path>', methods=['POST'])
 @login_required
@@ -232,7 +232,7 @@ def is_safe(filename):
 def hash_file(path):
     with open(path, 'rb') as f:
         data = f.read()
-    return hashlib.sha1(data + str(os.stat(path).st_size)).hexdigest()
+    return hashlib.sha1(data + str(os.stat(path).st_size) + str(current_user.username)).hexdigest()
 
 if __name__ == '__main__':
     # manager.run()
