@@ -6,6 +6,10 @@ import os
 import errno
 import shutil
 import types
+from threading import Thread
+import threading
+
+
 #Custom event handler for Watchdog events
 #assumes Linux atm
 #Goals: understand event handling in Watchdog and information in the event and possible pitfalls
@@ -30,6 +34,7 @@ class myEventHandler(FileSystemEventHandler):
             print "Issue deleting directory copiedTo"
             exit(1)
         shutil.copytree('/home/' + user + '/testfolder/testdir',self.path)
+
     def on_created(self, event):
         """Handles the creation of new files in the source directory"""
         super(myEventHandler,self).on_created(event)
@@ -47,13 +52,17 @@ class myEventHandler(FileSystemEventHandler):
             try:
                 print source
                 print destination
-                shutil.copyfile(source,destination)
+                t = threading.Thread(target=shutil.copyfile, args=(source, destination))#create thread
+                t.start()
+                t.join()
+                #shutil.copyfile(source,destination)
             except OSError as e:
-                    print "Error copying file! " + e.strerror
-                    exit(1)
+                print "Error copying file! " + e.strerror
+                exit(1)
             except IOError as e:
-                    print "IOerror creating file " + e.strerror
-                    exit(1)
+                print "IOerror creating file " + e.strerror
+                exit(1)
+
     def on_moved(self, event):
         """Method to handle moving or renaming of directories and files in the source folder"""
         super(myEventHandler,self).on_moved(event)
@@ -70,10 +79,14 @@ class myEventHandler(FileSystemEventHandler):
             try:
                 if event.src_path is not None:
                     os.remove(event.src_path.replace('/testfolder/testdir','/testfolder/copiedTo'))
-                shutil.copyfile(source,destination)
+                t = threading.Thread(target=shutil.copyfile, args=(source, destination))#create thread
+                t.start()
+                t.join()
+                #shutil.copyfile(source,destination)
             except OSError as e:
                 print "Error copying file! " + e
                 exit(1)
+
     def on_deleted(self, event):
         """Method to handle the deleting of files and directories in the source folder"""
         super(myEventHandler,self).on_deleted(event)
@@ -93,6 +106,7 @@ class myEventHandler(FileSystemEventHandler):
             except OSError as e:
                 print "Error deleting file! " + e
                 exit(1)
+
     def on_modified(self, event):
         """Handles modifications to prexisting files and directories in the source folder"""
         super(myEventHandler,self).on_modified(event)
@@ -102,7 +116,10 @@ class myEventHandler(FileSystemEventHandler):
         else:
             destination = event.src_path.replace('/testfolder/testdir','/testfolder/copiedTo')
             try:
-                shutil.copyfile(event.src_path,destination)
+                t = threading.Thread(target=shutil.copyfile, args=(event.src_path, destination))
+                t.start()
+                t.join()
+                #shutil.copyfile(event.src_path,destination)
             except OSError as e:
                 print "Error copying file! " + e
                 exit(1)
