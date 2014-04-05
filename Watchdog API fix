@@ -1,0 +1,35 @@
+#This fix makes watchdog recognize when a file is moved from the watched directory to the trash or to another directory
+#outside of watchdog's scope. HOWEVER THERE ARE STILL PROBLEMS ATM. 
+#Problem One: With or without this fix, files still cannot be created inside the watched directory
+#Problem Two: WITH this fix, there is a problem with renaming files in the watched directory.
+#Problem Three: WITH this fix, folders cannot be created inside the watched directory.
+#These problems need to be fixed while keeping this code fix in the Watchdog API. This fix is the only way for watchdog
+#recognize files being 'deleted'
+
+#To apply this fix, you must first go to where the watchdog source code is and change the permission on "inotify.py".
+#Copy and past this code after line 172. If you are having trouble getting the code to save, you may need to give your
+#code editor super user permissions. I could not figure out how to get PyCharm these permissions, but I gave Emacs 
+#super user permission by hitting "Alt + F2" and starting gksudo. Type in the name of your code editor, for me it was Emacs,
+#and your code editor now has super user permissions and should have no problem editiing 'inotify.py'.
+
+elif event.is_moved_from:
+                    try:
+                        src_path = self._inotify.source_for_move(event)
+                        to_event = event
+                        if not(hasattr(to_event,'dest_path')):
+                            dest_path = None
+                            klass = ACTION_EVENT_MAP[(event.is_directory,
+                                                      EVENT_TYPE_DELETED)]
+                            self.queue_event(klass(event.src_path))
+                        else:
+                            dest_path = to_event.dest_path
+                            klass = ACTION_EVENT_MAP[
+                                (to_event.is_directory, EVENT_TYPE_MOVED)]
+                            event = klass(src_path, dest_path)
+                            self.queue_event(event)
+                 # Generate sub events for the directory if recursive.
+                            if event.is_directory and self.watch.is_recursive:
+                                for sub_event in event.sub_moved_events():
+                                    self.queue_event(sub_event)
+                    except KeyError:
+                        pass
