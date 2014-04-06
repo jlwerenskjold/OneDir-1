@@ -32,7 +32,7 @@ db = SQLAlchemy(app)
 
 # To do DB migration: uncomment this, then run
 # python server.py db (migrate, then upgrade)
-#
+# #
 # migrate = Migrate(app, db)
 # manager = Manager(app)
 # manager.add_command('db', MigrateCommand)
@@ -75,8 +75,8 @@ class User(db.Model):
 class File(db.Model):
     __tablename__ = "files"
     username = db.Column('username',db.String(20), ForeignKey("users.username"))
-    name = db.Column('name', db.String(30))
-    path = db.Column('path', db.String(128))
+    name = db.Column('name', db.String(30), primary_key=True)
+    path = db.Column('path', db.String(128), primary_key=True)
     hash = db.Column('hash', db.String(40), primary_key=True)
     modified = db.Column('modified', db.DateTime)
 
@@ -180,7 +180,7 @@ def upload_no_path():
     file.save(full_path)
     file_hash = hash_file(full_path)
     entry = File(current_user.username, file.filename, '/', file_hash, datetime.datetime.utcnow())
-    dupe = File.query.filter_by(hash=file_hash, user=current_user).first()
+    dupe = File.query.filter_by(path='', user=current_user).first()
     if dupe:
         dupe = entry
     else:
@@ -198,7 +198,8 @@ def register():
         db.session.add(user)
         db.session.commit()
         os.makedirs(user.get_folder())
-    except:
+    except Exception as e:
+        print e
         return '{ "result" : -1, "msg" : "registration failed"}'
     return '{ "result" :"' + str(username) + '", "msg" : "user created"}'
 
@@ -232,7 +233,8 @@ def is_safe(filename):
 def hash_file(path):
     with open(path, 'rb') as f:
         data = f.read()
-    return hashlib.sha1(data + str(os.stat(path).st_size) + str(current_user.username)).hexdigest()
+    input = str(data) + str(os.stat(path).st_size) + str(current_user.username)
+    return str(hashlib.sha1(str(input)).hexdigest())
 
 if __name__ == '__main__':
     # manager.run()
